@@ -5,7 +5,58 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-export default function ManageFlightPage({ params }: { params: { id: string } }) {
+const STATUS_FLOW = [
+  "UPCOMING",
+  "BOARDING",
+  "CRUISING",
+  "DESCENDING",
+  "LANDING",
+  "PARKED",
+];
+
+const statusLabel: Record<string, string> = {
+  UPCOMING: "Upcoming",
+  BOARDING: "Boarding",
+  CRUISING: "Cruising",
+  DESCENDING: "Descending",
+  LANDING: "Landing",
+  PARKED: "Parked",
+  CANCELLED: "Cancelled",
+};
+
+const statusIcon: Record<string, string> = {
+  UPCOMING: "🕐",
+  BOARDING: "🚶",
+  CRUISING: "✈️",
+  DESCENDING: "📉",
+  LANDING: "🛬",
+  PARKED: "🅿️",
+  CANCELLED: "❌",
+};
+
+const statusColor: Record<string, string> = {
+  UPCOMING: "bg-purple-100 text-purple-800",
+  BOARDING: "bg-yellow-100 text-yellow-800",
+  CRUISING: "bg-blue-100 text-blue-800",
+  DESCENDING: "bg-orange-100 text-orange-800",
+  LANDING: "bg-red-100 text-red-800",
+  PARKED: "bg-green-100 text-green-800",
+  CANCELLED: "bg-gray-100 text-gray-800",
+};
+
+const nextStatusButton: Record<string, { label: string; color: string }> = {
+  UPCOMING: { label: "🚶 Open Boarding", color: "bg-yellow-500 hover:bg-yellow-600" },
+  BOARDING: { label: "✈️ Mark as Cruising", color: "bg-blue-500 hover:bg-blue-600" },
+  CRUISING: { label: "📉 Mark as Descending", color: "bg-orange-500 hover:bg-orange-600" },
+  DESCENDING: { label: "🛬 Mark as Landing", color: "bg-red-500 hover:bg-red-600" },
+  LANDING: { label: "🅿️ Mark as Parked", color: "bg-green-500 hover:bg-green-600" },
+};
+
+export default function ManageFlightPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [flight, setFlight] = useState<any>(null);
@@ -37,7 +88,7 @@ export default function ManageFlightPage({ params }: { params: { id: string } })
     });
     setFlight((prev: any) => ({ ...prev, status: newStatus }));
     setUpdating(false);
-    if (newStatus === "LANDED" || newStatus === "CANCELLED") {
+    if (newStatus === "PARKED" || newStatus === "CANCELLED") {
       router.push("/dashboard");
     }
   }
@@ -58,12 +109,9 @@ export default function ManageFlightPage({ params }: { params: { id: string } })
     );
   }
 
-  const statusColor: Record<string, string> = {
-    BOARDING: "bg-yellow-100 text-yellow-800",
-    IN_FLIGHT: "bg-blue-100 text-blue-800",
-    LANDED: "bg-green-100 text-green-800",
-    CANCELLED: "bg-red-100 text-red-800",
-  };
+  const currentIndex = STATUS_FLOW.indexOf(flight.status);
+  const nextStatus = STATUS_FLOW[currentIndex + 1];
+  const isClosed = flight.status === "PARKED" || flight.status === "CANCELLED";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -76,7 +124,10 @@ export default function ManageFlightPage({ params }: { params: { id: string } })
           </div>
           <span className="font-bold text-lg">BA Flight Portal</span>
         </div>
-        <Link href="/dashboard" className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition">
+        <Link
+          href="/dashboard"
+          className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition"
+        >
           ← Back
         </Link>
       </nav>
@@ -90,39 +141,55 @@ export default function ManageFlightPage({ params }: { params: { id: string } })
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <p className="text-2xl font-bold text-[#075AAA]">{flight.flightNumber}</p>
+              <p className="text-2xl font-bold text-[#075AAA]">
+                {flight.flightNumber}
+              </p>
               <span className={`text-xs px-3 py-1 rounded-full font-semibold ${statusColor[flight.status]}`}>
-                {flight.status}
+                {statusIcon[flight.status]} {statusLabel[flight.status]}
               </span>
             </div>
-            <p className="text-gray-500">{flight.route}</p>
-            <p className="text-gray-400 text-sm">Host: {flight.host?.username}</p>
+            <div className="flex items-center gap-2 text-gray-600 font-semibold">
+              <span>{flight.departure}</span>
+              <span>→</span>
+              <span>{flight.arrival}</span>
+            </div>
+            {flight.departureTime && (
+              <p className="text-gray-400 text-sm">
+                🕐 {new Date(flight.departureTime).toLocaleString([], {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+            )}
+            <p className="text-gray-400 text-xs">Host: {flight.host?.username}</p>
+          </div>
+
+          {/* Status progress bar */}
+          <div className="flex items-center gap-1">
+            {STATUS_FLOW.map((s, i) => (
+              <div
+                key={s}
+                className={`flex-1 h-2 rounded-full ${
+                  i <= currentIndex ? "bg-[#075AAA]" : "bg-gray-200"
+                }`}
+              />
+            ))}
           </div>
 
           <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
             <p className="text-sm font-semibold text-gray-600">Update Status</p>
 
-            {flight.status === "BOARDING" && (
+            {!isClosed && nextStatus && nextStatusButton[flight.status] && (
               <button
-                onClick={() => updateStatus("IN_FLIGHT")}
+                onClick={() => updateStatus(nextStatus)}
                 disabled={updating}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition disabled:opacity-50"
+                className={`w-full text-white font-bold py-3 rounded-xl transition disabled:opacity-50 ${nextStatusButton[flight.status].color}`}
               >
-                🛫 Mark as In Flight
+                {nextStatusButton[flight.status].label}
               </button>
             )}
 
-            {flight.status === "IN_FLIGHT" && (
-              <button
-                onClick={() => updateStatus("LANDED")}
-                disabled={updating}
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition disabled:opacity-50"
-              >
-                🛬 Mark as Landed
-              </button>
-            )}
-
-            {flight.status !== "LANDED" && flight.status !== "CANCELLED" && (
+            {!isClosed && (
               <button
                 onClick={() => updateStatus("CANCELLED")}
                 disabled={updating}
@@ -132,8 +199,10 @@ export default function ManageFlightPage({ params }: { params: { id: string } })
               </button>
             )}
 
-            {(flight.status === "LANDED" || flight.status === "CANCELLED") && (
-              <p className="text-gray-400 text-center text-sm">This flight is closed.</p>
+            {isClosed && (
+              <p className="text-gray-400 text-center text-sm">
+                This flight is closed.
+              </p>
             )}
           </div>
         </div>
