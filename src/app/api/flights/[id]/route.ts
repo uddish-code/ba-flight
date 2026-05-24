@@ -20,7 +20,7 @@ export async function PATCH(
     data: { status },
   });
 
-  if (status === "LANDED") {
+  if (status === "PARKED") {
     const users = await prisma.user.findMany();
     for (const user of users) {
       const existing = await prisma.flightLog.findFirst({
