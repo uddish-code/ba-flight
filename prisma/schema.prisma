@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  discordId     String    @unique
+  username      String
+  avatar        String?
+  role          Role      @default(MEMBER)
+  createdAt     DateTime  @default(now())
+  flights       Flight[]
+  flightLogs    FlightLog[]
+}
+
+model Flight {
+  id            String    @id @default(cuid())
+  flightNumber  String
+  route         String
+  status        FlightStatus @default(BOARDING)
+  hostId        String
+  host          User      @relation(fields: [hostId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  flightLogs    FlightLog[]
+}
+
+model FlightLog {
+  id        String   @id @default(cuid())
+  flightId  String
+  flight    Flight   @relation(fields: [flightId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  loggedAt  DateTime @default(now())
+}
+
+enum Role {
+  MEMBER
+  HOST
+  ADMIN
+}
+
+enum FlightStatus {
+  BOARDING
+  IN_FLIGHT
+  LANDED
+  CANCELLED
+}
