@@ -1,0 +1,121 @@
+"use client";
+
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
+export default function StartFlightPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [flightNumber, setFlightNumber] = useState("");
+  const [route, setRoute] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (status === "unauthenticated") router.push("/login");
+    if (status === "authenticated") {
+      const user = session.user as any;
+      if (!["HOST", "ADMIN"].includes(user.role)) {
+        router.push("/dashboard");
+      }
+    }
+  }, [status, session, router]);
+
+  async function handleSubmit() {
+    if (!flightNumber || !route) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    const res = await fetch("/api/flights", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ flightNumber, route }),
+    });
+    if (res.ok) {
+      router.push("/dashboard");
+    } else {
+      const data = await res.json();
+      setError(data.error || "Something went wrong.");
+      setLoading(false);
+    }
+  }
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#003b6f]">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-[#003b6f] text-white px-6 py-4 flex items-center justify-between shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="bg-[#075AAA] rounded-full p-2">
+            <svg width="24" height="24" viewBox="0 0 48 48" fill="none">
+              <path d="M8 24L24 8L40 24L24 40L8 24Z" fill="white" />
+            </svg>
+          </div>
+          <span className="font-bold text-lg">BA Flight Portal</span>
+        </div>
+        <Link href="/dashboard" className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition">
+          ← Back
+        </Link>
+      </nav>
+
+      <div className="max-w-lg mx-auto px-4 py-12">
+        <div className="bg-white rounded-2xl shadow p-8 flex flex-col gap-6">
+          <div>
+            <h1 className="text-2xl font-bold text-[#003b6f]">✈️ Start a Flight</h1>
+            <p className="text-gray-400 text-sm mt-1">Fill in the details to open boarding</p>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-sm font-semibold text-gray-600 mb-1 block">
+                Flight Number
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. BA112"
+                value={flightNumber}
+                onChange={(e) => setFlightNumber(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#075AAA]"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-600 mb-1 block">
+                Route
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. EGLL → OMDB"
+                value={route}
+                onChange={(e) => setRoute(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#075AAA]"
+              />
+            </div>
+
+            {error && (
+              <p className="text-red-500 text-sm">{error}</p>
+            )}
+
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full bg-[#075AAA] hover:bg-[#003b6f] text-white font-bold py-3 rounded-xl transition disabled:opacity-50"
+            >
+              {loading ? "Starting..." : "Start Flight"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
