@@ -3,7 +3,10 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   const session = await getServerSession(authOptions) as any;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!["HOST", "ADMIN"].includes(session.user.role)) {
@@ -18,22 +21,29 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   });
 
   if (status === "LANDED") {
-    const members = await prisma.user.findMany({
-      where: { role: { in: ["MEMBER", "HOST"] } },
-    });
-    await prisma.flightLog.createMany({
-      data: members.map((u) => ({
-        flightId: flight.id,
-        userId: u.id,
-      })),
-      skipDuplicates: true,
-    });
+    const users = await prisma.user.findMany();
+    for (const user of users) {
+      const existing = await prisma.flightLog.findFirst({
+        where: { flightId: flight.id, userId: user.id },
+      });
+      if (!existing) {
+        await prisma.flightLog.create({
+          data: {
+            flightId: flight.id,
+            userId: user.id,
+          },
+        });
+      }
+    }
   }
 
   return NextResponse.json(flight);
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   const session = await getServerSession(authOptions) as any;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (session.user.role !== "ADMIN") {
