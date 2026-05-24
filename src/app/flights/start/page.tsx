@@ -9,7 +9,9 @@ export default function StartFlightPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [flightNumber, setFlightNumber] = useState("");
-  const [route, setRoute] = useState("");
+  const [departure, setDeparture] = useState("");
+  const [arrival, setArrival] = useState("");
+  const [departureTime, setDepartureTime] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,7 +26,7 @@ export default function StartFlightPage() {
   }, [status, session, router]);
 
   async function handleSubmit() {
-    if (!flightNumber || !route) {
+    if (!flightNumber || !departure || !arrival || !departureTime) {
       setError("Please fill in all fields.");
       return;
     }
@@ -33,7 +35,12 @@ export default function StartFlightPage() {
     const res = await fetch("/api/flights", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ flightNumber, route }),
+      body: JSON.stringify({
+        flightNumber,
+        departure: departure.toUpperCase(),
+        arrival: arrival.toUpperCase(),
+        departureTime,
+      }),
     });
     if (res.ok) {
       router.push("/dashboard");
@@ -63,7 +70,10 @@ export default function StartFlightPage() {
           </div>
           <span className="font-bold text-lg">BA Flight Portal</span>
         </div>
-        <Link href="/dashboard" className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition">
+        <Link
+          href="/dashboard"
+          className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition"
+        >
           ← Back
         </Link>
       </nav>
@@ -89,22 +99,46 @@ export default function StartFlightPage() {
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-600 mb-1 block">
+                  Departure Airport
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. EGLL"
+                  value={departure}
+                  onChange={(e) => setDeparture(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#075AAA] uppercase"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-600 mb-1 block">
+                  Arrival Airport
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. OMDB"
+                  value={arrival}
+                  onChange={(e) => setArrival(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#075AAA] uppercase"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="text-sm font-semibold text-gray-600 mb-1 block">
-                Route
+                Departure Time
               </label>
               <input
-                type="text"
-                placeholder="e.g. EGLL → OMDB"
-                value={route}
-                onChange={(e) => setRoute(e.target.value)}
+                type="datetime-local"
+                value={departureTime}
+                onChange={(e) => setDepartureTime(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#075AAA]"
               />
             </div>
 
-            {error && (
-              <p className="text-red-500 text-sm">{error}</p>
-            )}
+            {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <button
               onClick={handleSubmit}
