@@ -47,7 +47,10 @@ export default function LogsPage() {
           </div>
           <span className="font-bold text-lg">BA Flight Portal</span>
         </div>
-        <Link href="/dashboard" className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition">
+        <Link
+          href="/dashboard"
+          className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition"
+        >
           ← Back
         </Link>
       </nav>
@@ -70,26 +73,37 @@ export default function LogsPage() {
                   key={log.id}
                   className="flex items-center justify-between border border-gray-100 rounded-xl p-4"
                 >
-                  <div>
-                    <p className="font-bold text-[#003b6f]">
-                      {log.flight?.flightNumber}
-                    </p>
-                    <p className="text-gray-500 text-sm">{log.flight?.route}</p>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-[#003b6f]">
+                        {log.flight?.flightNumber}
+                      </p>
+                      <span className="text-gray-400 text-xs">
+                        Hosted by {log.flight?.host?.username}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600 text-sm">
+                      <span className="font-semibold">{log.flight?.departure}</span>
+                      <span>→</span>
+                      <span className="font-semibold">{log.flight?.arrival}</span>
+                    </div>
                     {user?.role === "ADMIN" && (
                       <p className="text-gray-400 text-xs">
                         Passenger: {log.user?.username}
                       </p>
                     )}
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-400">
-                      {new Date(log.loggedAt).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </p>
-                    <p className="text-xs text-green-600 font-semibold mt-1">
+                  <div className="text-right flex flex-col gap-1">
+                    {log.flight?.departureTime && (
+                      <p className="text-xs text-gray-400">
+                        {new Date(log.flight.departureTime).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                    )}
+                    <p className="text-xs text-green-600 font-semibold">
                       ✅ Completed
                     </p>
                   </div>
