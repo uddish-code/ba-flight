@@ -2,6 +2,27 @@ import { NextAuthOptions } from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
 import { prisma } from "./prisma";
 
+async function getDiscordRole(discordId: string): Promise<"HOST" | "MEMBER"> {
+  try {
+    const res = await fetch(
+      `https://discord.com/api/v10/guilds/${process.env.DISCORD_GUILD_ID}/members/${discordId}`,
+      {
+        headers: {
+          Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+        },
+      }
+    );
+    if (!res.ok) return "MEMBER";
+    const member = await res.json();
+    const roles: string[] = member.roles || [];
+    if (roles.includes(process.env.DISCORD_HOST_ROLE_ID!)) return "HOST";
+    return "MEMBER";
+  } catch (e) {
+    console.error("Discord role fetch error:", e);
+    return "MEMBER";
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     DiscordProvider({
@@ -13,6 +34,13 @@ export const authOptions: NextAuthOptions = {
     async signIn({ profile }: any) {
       if (!profile) return false;
       try {
+        const existingUser = await prisma.user.findUnique({
+          where: { discordId: profile.id },
+        });
+
+        const discordRole = await getDiscordRole(profile.id);
+        const role = existingUser?.role === "ADMIN" ? "ADMIN" : discordRole;
+
         await prisma.user.upsert({
           where: { discordId: profile.id },
           update: {
@@ -20,6 +48,7 @@ export const authOptions: NextAuthOptions = {
             avatar: profile.avatar
               ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
               : null,
+            role,
           },
           create: {
             discordId: profile.id,
@@ -27,7 +56,7 @@ export const authOptions: NextAuthOptions = {
             avatar: profile.avatar
               ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
               : null,
-            role: "MEMBER",
+            role,
           },
         });
         return true;
