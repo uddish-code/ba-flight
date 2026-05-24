@@ -22,16 +22,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { flightNumber, route } = await req.json();
+  const { flightNumber, departure, arrival, departureTime } = await req.json();
 
-  if (!flightNumber || !route) {
+  if (!flightNumber || !departure || !arrival || !departureTime) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
   const flight = await prisma.flight.create({
     data: {
       flightNumber,
-      route,
+      route: `${departure} → ${arrival}`,
+      departure,
+      arrival,
+      departureTime: new Date(departureTime),
       hostId: session.user.id,
       status: "BOARDING",
     },
