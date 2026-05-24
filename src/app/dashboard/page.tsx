@@ -5,11 +5,23 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+function getCountdown(departureTime: string): string {
+  const now = new Date();
+  const dep = new Date(departureTime);
+  const diff = dep.getTime() - now.getTime();
+  if (diff <= 0) return "Departing now";
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `Departing in ${hours}h ${minutes}m`;
+  return `Departing in ${minutes}m`;
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [flights, setFlights] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -26,6 +38,11 @@ export default function DashboardPage() {
     }
   }, [status]);
 
+  useEffect(() => {
+    const interval = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   if (status === "loading" || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#003b6f]">
@@ -37,22 +54,41 @@ export default function DashboardPage() {
   const user = session.user as any;
 
   const statusColor: Record<string, string> = {
+    UPCOMING: "bg-purple-100 text-purple-800",
     BOARDING: "bg-yellow-100 text-yellow-800",
-    IN_FLIGHT: "bg-blue-100 text-blue-800",
-    LANDED: "bg-green-100 text-green-800",
-    CANCELLED: "bg-red-100 text-red-800",
+    CRUISING: "bg-blue-100 text-blue-800",
+    DESCENDING: "bg-orange-100 text-orange-800",
+    LANDING: "bg-red-100 text-red-800",
+    PARKED: "bg-green-100 text-green-800",
+    CANCELLED: "bg-gray-100 text-gray-800",
   };
 
   const statusLabel: Record<string, string> = {
+    UPCOMING: "Upcoming",
     BOARDING: "Boarding",
-    IN_FLIGHT: "In Flight",
-    LANDED: "Landed",
+    CRUISING: "Cruising",
+    DESCENDING: "Descending",
+    LANDING: "Landing",
+    PARKED: "Parked",
     CANCELLED: "Cancelled",
   };
 
+  const statusIcon: Record<string, string> = {
+    UPCOMING: "🕐",
+    BOARDING: "🚶",
+    CRUISING: "✈️",
+    DESCENDING: "📉",
+    LANDING: "🛬",
+    PARKED: "🅿️",
+    CANCELLED: "❌",
+  };
+
+  const activeFlights = flights.filter(
+    (f) => f.status !== "PARKED" && f.status !== "CANCELLED"
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
       <nav className="bg-[#003b6f] text-white px-6 py-4 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <div className="bg-[#075AAA] rounded-full p-2">
@@ -84,7 +120,6 @@ export default function DashboardPage() {
       </nav>
 
       <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col gap-6">
-        {/* Quick Links */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Link href="/dashboard" className="bg-[#075AAA] text-white rounded-xl p-4 text-center font-semibold hover:bg-[#003b6f] transition">
             🏠 Dashboard
@@ -104,36 +139,60 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Active Flights */}
         <div className="bg-white rounded-2xl shadow p-6">
           <h2 className="text-xl font-bold text-[#003b6f] mb-4">Active Flights</h2>
           {loading ? (
             <p className="text-gray-400">Loading flights...</p>
-          ) : flights.filter((f) => f.status !== "LANDED" && f.status !== "CANCELLED").length === 0 ? (
+          ) : activeFlights.length === 0 ? (
             <p className="text-gray-400">No active flights right now.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {flights
-                .filter((f) => f.status !== "LANDED" && f.status !== "CANCELLED")
-                .map((flight) => (
-                  <div key={flight.id} className="flex items-center justify-between border border-gray-100 rounded-xl p-4">
-                    <div>
-                      <p className="font-bold text-[#003b6f]">{flight.flightNumber}</p>
-                      <p className="text-gray-500 text-sm">{flight.route}</p>
-                      <p className="text-gray-400 text-xs">Host: {flight.host?.username}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`text-xs px-3 py-1 rounded-full font-semibold ${statusColor[flight.status]}`}>
-                        {statusLabel[flight.status]}
+              {activeFlights.map((flight) => (
+                <div
+                  key={flight.id}
+                  className="flex items-center justify-between border border-gray-100 rounded-xl p-4"
+                >
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-[#003b6f] text-lg">
+                        {flight.flightNumber}
+                      </p>
+                      <span className={`text-xs px-2 py-1 rounded-full font-semibold ${statusColor[flight.status]}`}>
+                        {statusIcon[flight.status]} {statusLabel[flight.status]}
                       </span>
-                      {["HOST", "ADMIN"].includes(user.role) && (
-                        <Link href={`/flights/${flight.id}`} className="text-xs text-[#075AAA] underline">
-                          Manage
-                        </Link>
-                      )}
                     </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <span className="font-semibold">{flight.departure}</span>
+                      <span>→</span>
+                      <span className="font-semibold">{flight.arrival}</span>
+                    </div>
+                    <p className="text-gray-400 text-xs">Host: {flight.host?.username}</p>
+                    {flight.status === "UPCOMING" && flight.departureTime && (
+                      <p className="text-purple-600 text-xs font-semibold">
+                        🕐 {getCountdown(flight.departureTime)}
+                      </p>
+                    )}
                   </div>
-                ))}
+                  <div className="flex flex-col items-end gap-2">
+                    {flight.departureTime && (
+                      <p className="text-xs text-gray-400">
+                        {new Date(flight.departureTime).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    )}
+                    {["HOST", "ADMIN"].includes(user.role) && (
+                      <Link
+                        href={`/flights/${flight.id}`}
+                        className="text-xs text-[#075AAA] underline"
+                      >
+                        Manage
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
