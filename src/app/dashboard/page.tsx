@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [flights, setFlights] = useState<any[]>([]);
+  const [myTickets, setMyTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [, setTick] = useState(0);
 
@@ -35,6 +36,9 @@ export default function DashboardPage() {
           setFlights(data);
           setLoading(false);
         });
+      fetch("/api/tickets")
+        .then((r) => r.json())
+        .then((data) => setMyTickets(data));
     }
   }, [status]);
 
@@ -63,16 +67,6 @@ export default function DashboardPage() {
     CANCELLED: "bg-gray-100 text-gray-800",
   };
 
-  const statusLabel: Record<string, string> = {
-    UPCOMING: "Upcoming",
-    BOARDING: "Boarding",
-    CRUISING: "Cruising",
-    DESCENDING: "Descending",
-    LANDING: "Landing",
-    PARKED: "Parked",
-    CANCELLED: "Cancelled",
-  };
-
   const statusIcon: Record<string, string> = {
     UPCOMING: "🕐",
     BOARDING: "🚶",
@@ -87,6 +81,19 @@ export default function DashboardPage() {
     (f) => f.status !== "PARKED" && f.status !== "CANCELLED"
   );
 
+  function getTicketForFlight(flightId: string) {
+    return myTickets.find((t: any) => t.flightId === flightId);
+  }
+
+  function getSeatsLeft(flight: any, cls: string) {
+    const booked = flight.tickets.filter((t: any) => t.class === cls).length;
+    const total =
+      cls === "ECONOMY" ? flight.economySeats :
+      cls === "BUSINESS" ? flight.businessSeats :
+      flight.firstClassSeats;
+    return total - booked;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-[#003b6f] text-white px-6 py-4 flex items-center justify-between shadow-lg">
@@ -100,16 +107,10 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-4">
           {user.avatar && (
-            <img
-              src={user.avatar}
-              alt="avatar"
-              className="w-8 h-8 rounded-full border-2 border-white"
-            />
+            <img src={user.avatar} alt="avatar" className="w-8 h-8 rounded-full border-2 border-white" />
           )}
           <span className="text-sm hidden sm:block">{user.name}</span>
-          <span className="text-xs bg-[#075AAA] px-2 py-1 rounded-full">
-            {user.role}
-          </span>
+          <span className="text-xs bg-[#075AAA] px-2 py-1 rounded-full">{user.role}</span>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition"
@@ -120,6 +121,22 @@ export default function DashboardPage() {
       </nav>
 
       <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col gap-6">
+        {/* BA Miles Banner */}
+        <div className="bg-[#003b6f] rounded-2xl p-5 flex items-center justify-between text-white">
+          <div>
+            <p className="text-sm text-blue-200">Your BA Miles</p>
+            <p className="text-3xl font-bold">✈ {user.baMiles || 0}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-blue-200">Class</p>
+            <p className="font-bold capitalize">
+              {user.ticketClass === "FIRST_CLASS" ? "🟥 First Class" :
+               user.ticketClass === "BUSINESS" ? "🟨 Business" : "🟦 Economy"}
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Links */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Link href="/dashboard" className="bg-[#075AAA] text-white rounded-xl p-4 text-center font-semibold hover:bg-[#003b6f] transition">
             🏠 Dashboard
@@ -139,6 +156,7 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Active Flights */}
         <div className="bg-white rounded-2xl shadow p-6">
           <h2 className="text-xl font-bold text-[#003b6f] mb-4">Active Flights</h2>
           {loading ? (
@@ -147,52 +165,71 @@ export default function DashboardPage() {
             <p className="text-gray-400">No active flights right now.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {activeFlights.map((flight) => (
-                <div
-                  key={flight.id}
-                  className="flex items-center justify-between border border-gray-100 rounded-xl p-4"
-                >
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-[#003b6f] text-lg">
-                        {flight.flightNumber}
-                      </p>
-                      <span className={`text-xs px-2 py-1 rounded-full font-semibold ${statusColor[flight.status]}`}>
-                        {statusIcon[flight.status]} {statusLabel[flight.status]}
-                      </span>
+              {activeFlights.map((flight) => {
+                const myTicket = getTicketForFlight(flight.id);
+                const canBook = ["UPCOMING", "BOARDING"].includes(flight.status);
+                return (
+                  <div key={flight.id} className="border border-gray-100 rounded-xl p-4 flex flex-col gap-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-[#003b6f] text-lg">{flight.flightNumber}</p>
+                          <span className={`text-xs px-2 py-1 rounded-full font-semibold ${statusColor[flight.status]}`}>
+                            {statusIcon[flight.status]} {flight.status}
+                          </span>
+                          {myTicket && (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
+                              ✅ Booked
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-600 font-semibold">
+                          <span>{flight.departure}</span>
+                          <span>→</span>
+                          <span>{flight.arrival}</span>
+                        </div>
+                        <p className="text-gray-400 text-xs">Host: {flight.host?.username}</p>
+                        {flight.status === "UPCOMING" && flight.departureTime && (
+                          <p className="text-purple-600 text-xs font-semibold">
+                            🕐 {getCountdown(flight.departureTime)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 text-xs text-gray-400">
+                        <span>🟦 {getSeatsLeft(flight, "ECONOMY")} eco</span>
+                        <span>🟨 {getSeatsLeft(flight, "BUSINESS")} biz</span>
+                        <span>🟥 {getSeatsLeft(flight, "FIRST_CLASS")} first</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <span className="font-semibold">{flight.departure}</span>
-                      <span>→</span>
-                      <span className="font-semibold">{flight.arrival}</span>
+                    <div className="flex gap-2">
+                      {canBook && !myTicket && (
+                        <Link
+                          href={`/flights/${flight.id}/book`}
+                          className="flex-1 bg-[#075AAA] text-white text-center text-sm font-semibold py-2 rounded-lg hover:bg-[#003b6f] transition"
+                        >
+                          🎫 Book Ticket
+                        </Link>
+                      )}
+                      {canBook && myTicket && (
+                        <Link
+                          href={`/flights/${flight.id}/book`}
+                          className="flex-1 bg-gray-100 text-gray-600 text-center text-sm font-semibold py-2 rounded-lg hover:bg-gray-200 transition"
+                        >
+                          View Booking
+                        </Link>
+                      )}
+                      {["HOST", "ADMIN"].includes(user.role) && (
+                        <Link
+                          href={`/flights/${flight.id}`}
+                          className="bg-gray-100 text-gray-600 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-200 transition"
+                        >
+                          Manage
+                        </Link>
+                      )}
                     </div>
-                    <p className="text-gray-400 text-xs">Host: {flight.host?.username}</p>
-                    {flight.status === "UPCOMING" && flight.departureTime && (
-                      <p className="text-purple-600 text-xs font-semibold">
-                        🕐 {getCountdown(flight.departureTime)}
-                      </p>
-                    )}
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    {flight.departureTime && (
-                      <p className="text-xs text-gray-400">
-                        {new Date(flight.departureTime).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    )}
-                    {["HOST", "ADMIN"].includes(user.role) && (
-                      <Link
-                        href={`/flights/${flight.id}`}
-                        className="text-xs text-[#075AAA] underline"
-                      >
-                        Manage
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
