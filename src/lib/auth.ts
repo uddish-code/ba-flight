@@ -2,25 +2,43 @@ import { NextAuthOptions } from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
 import { prisma } from "./prisma";
 
-async function getDiscordRole(discordId: string): Promise<"HOST" | "MEMBER"> {
+const GUILD_ID = process.env.DISCORD_GUILD_ID!;
+const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
+const HOST_ROLE = process.env.DISCORD_HOST_ROLE_ID!;
+const ECONOMY_ROLE = "1016034180431360115";
+const BUSINESS_ROLE = "1016034180431360116";
+const FIRST_CLASS_ROLE = "1016034180431360119";
+
+async function getDiscordRoles(discordId: string): Promise<string[]> {
   try {
     const res = await fetch(
-      `https://discord.com/api/v10/guilds/${process.env.DISCORD_GUILD_ID}/members/${discordId}`,
+      `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${discordId}`,
       {
-        headers: {
-          Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
-        },
+        headers: { Authorization: `Bot ${BOT_TOKEN}` },
       }
     );
-    if (!res.ok) return "MEMBER";
+    if (!res.ok) return [];
     const member = await res.json();
-    const roles: string[] = member.roles || [];
-    if (roles.includes(process.env.DISCORD_HOST_ROLE_ID!)) return "HOST";
-    return "MEMBER";
+    return member.roles || [];
   } catch (e) {
     console.error("Discord role fetch error:", e);
-    return "MEMBER";
+    return [];
   }
+}
+
+function getPortalRole(
+  roles: string[],
+  existingRole: string | null
+): "ADMIN" | "HOST" | "MEMBER" {
+  if (existingRole === "ADMIN") return "ADMIN";
+  if (roles.includes(HOST_ROLE)) return "HOST";
+  return "MEMBER";
+}
+
+function getTicketClass(roles: string[]): string {
+  if (roles.includes(FIRST_CLASS_ROLE)) return "FIRST_CLASS";
+  if (roles.includes(BUSINESS_ROLE)) return "BUSINESS";
+  return "ECONOMY";
 }
 
 export const authOptions: NextAuthOptions = {
@@ -34,12 +52,12 @@ export const authOptions: NextAuthOptions = {
     async signIn({ profile }: any) {
       if (!profile) return false;
       try {
+        const discordRoles = await getDiscordRoles(profile.id);
         const existingUser = await prisma.user.findUnique({
           where: { discordId: profile.id },
         });
-
-        const discordRole = await getDiscordRole(profile.id);
-        const role = existingUser?.role === "ADMIN" ? "ADMIN" : discordRole;
+        const portalRole = getPortalRole(discordRoles, existingUser?.role ?? null);
+        const ticketClass = getTicketClass(discordRoles);
 
         await prisma.user.upsert({
           where: { discordId: profile.id },
@@ -48,7 +66,7 @@ export const authOptions: NextAuthOptions = {
             avatar: profile.avatar
               ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
               : null,
-            role,
+            role: portalRole,
           },
           create: {
             discordId: profile.id,
@@ -56,7 +74,8 @@ export const authOptions: NextAuthOptions = {
             avatar: profile.avatar
               ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
               : null,
-            role,
+            role: portalRole,
+            baMiles: 0,
           },
         });
         return true;
@@ -76,7 +95,10 @@ export const authOptions: NextAuthOptions = {
           session.user.discordId = dbUser.discordId;
           session.user.avatar = dbUser.avatar;
           session.user.name = dbUser.username;
+          session.user.baMiles = dbUser.baMiles;
         }
+        const discordRoles = await getDiscordRoles(token.discordId);
+        session.user.ticketClass = getTicketClass(discordRoles);
       }
       return session;
     },
@@ -87,10 +109,6 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
   },
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/login",
-  },
+  session: { strategy: "jwt" },
+  pages: { signIn: "/login" },
 };
