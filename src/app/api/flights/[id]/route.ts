@@ -26,42 +26,7 @@ export async function PATCH(
     data: { status },
   });
 
-  if (status === "PARKED") {
-    try {
-      const tickets = await prisma.ticket.findMany({
-        where: { flightId: flight.id },
-        include: { user: true },
-      });
-
-      console.log(`Completing flight for ${tickets.length} booked passengers`);
-
-      for (const ticket of tickets) {
-        const miles = MILES_PER_CLASS[ticket.class] ?? 30;
-
-        const existing = await prisma.flightLog.findFirst({
-          where: { flightId: flight.id, userId: ticket.userId },
-        });
-
-        if (!existing) {
-          await prisma.flightLog.create({
-            data: {
-              flightId: flight.id,
-              userId: ticket.userId,
-            },
-          });
-        }
-
-        await prisma.user.update({
-          where: { id: ticket.userId },
-          data: { baMiles: { increment: miles } },
-        });
-
-        console.log(`Awarded ${miles} BA Miles to ${ticket.user.username}`);
-      }
-    } catch (e) {
-      console.error("Error completing flight:", e);
-    }
-  }
+// Miles and logs are handled by the /end endpoint
 
   return NextResponse.json(flight);
 }
