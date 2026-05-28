@@ -5,10 +5,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+const MILES: Record<string, number> = {
+  ECONOMY: 30,
+  BUSINESS: 50,
+  FIRST_CLASS: 70,
+};
+
 export default function LogsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [logs, setLogs] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,12 +24,14 @@ export default function LogsPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      fetch("/api/logs")
-        .then((r) => r.json())
-        .then((data) => {
-          setLogs(data);
-          setLoading(false);
-        });
+      Promise.all([
+        fetch("/api/logs").then((r) => r.json()),
+        fetch("/api/tickets").then((r) => r.json()),
+      ]).then(([logsData, ticketsData]) => {
+        setLogs(logsData);
+        setTickets(ticketsData);
+        setLoading(false);
+      });
     }
   }, [status]);
 
@@ -36,6 +45,21 @@ export default function LogsPage() {
 
   const user = session?.user as any;
 
+  function getTicketForFlight(flightId: string) {
+    return tickets.find((t: any) => t.flightId === flightId);
+  }
+
+  function getClassLabel(cls: string) {
+    if (cls === "ECONOMY") return "🟦 Economy";
+    if (cls === "BUSINESS") return "🟨 Business";
+    return "🟥 First Class";
+  }
+
+  const totalMiles = logs.reduce((acc, log) => {
+    const ticket = getTicketForFlight(log.flightId);
+    return acc + (MILES[ticket?.class] || 0);
+  }, 0);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-[#003b6f] text-white px-6 py-4 flex items-center justify-between shadow-lg">
@@ -47,15 +71,24 @@ export default function LogsPage() {
           </div>
           <span className="font-bold text-lg">BA Flight Portal</span>
         </div>
-        <Link
-          href="/dashboard"
-          className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition"
-        >
+        <Link href="/dashboard" className="text-sm bg-white text-[#003b6f] px-3 py-1 rounded-lg font-semibold hover:bg-gray-100 transition">
           ← Back
         </Link>
       </nav>
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6">
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-[#003b6f] rounded-2xl p-5 text-white">
+            <p className="text-sm text-blue-200">Total Flights</p>
+            <p className="text-3xl font-bold">{logs.length}</p>
+          </div>
+          <div className="bg-[#075AAA] rounded-2xl p-5 text-white">
+            <p className="text-sm text-blue-200">BA Miles Balance</p>
+            <p className="text-3xl font-bold">✈ {user?.baMiles || 0}</p>
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl shadow p-6">
           <h1 className="text-2xl font-bold text-[#003b6f] mb-1">📋 Flight Logs</h1>
           <p className="text-gray-400 text-sm mb-6">
@@ -68,47 +101,59 @@ export default function LogsPage() {
             <p className="text-gray-400">No flight logs yet.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between border border-gray-100 rounded-xl p-4"
-                >
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-[#003b6f]">
-                        {log.flight?.flightNumber}
-                      </p>
-                      <span className="text-gray-400 text-xs">
-                        Hosted by {log.flight?.host?.username}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600 text-sm">
-                      <span className="font-semibold">{log.flight?.departure}</span>
-                      <span>→</span>
-                      <span className="font-semibold">{log.flight?.arrival}</span>
-                    </div>
-                    {user?.role === "ADMIN" && (
+              {logs.map((log) => {
+                const ticket = getTicketForFlight(log.flightId);
+                const miles = MILES[ticket?.class] || 0;
+                return (
+                  <div
+                    key={log.id}
+                    className="flex items-center justify-between border border-gray-100 rounded-xl p-4"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-[#003b6f]">
+                          {log.flight?.flightNumber}
+                        </p>
+                        {ticket && (
+                          <span className="text-xs text-gray-500">
+                            {getClassLabel(ticket.class)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-600 text-sm">
+                        <span className="font-semibold">{log.flight?.departure}</span>
+                        <span>→</span>
+                        <span className="font-semibold">{log.flight?.arrival}</span>
+                      </div>
                       <p className="text-gray-400 text-xs">
-                        Passenger: {log.user?.username}
+                        Hosted by {log.flight?.host?.username}
                       </p>
-                    )}
+                      {user?.role === "ADMIN" && (
+                        <p className="text-gray-400 text-xs">
+                          Passenger: {log.user?.username}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right flex flex-col gap-1">
+                      {log.flight?.departureTime && (
+                        <p className="text-xs text-gray-400">
+                          {new Date(log.flight.departureTime).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </p>
+                      )}
+                      <p className="text-xs text-green-600 font-semibold">✅ Completed</p>
+                      {miles > 0 && (
+                        <p className="text-xs text-[#075AAA] font-semibold">
+                          +{miles} miles
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right flex flex-col gap-1">
-                    {log.flight?.departureTime && (
-                      <p className="text-xs text-gray-400">
-                        {new Date(log.flight.departureTime).toLocaleDateString("en-GB", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </p>
-                    )}
-                    <p className="text-xs text-green-600 font-semibold">
-                      ✅ Completed
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
