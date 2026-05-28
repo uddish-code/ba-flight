@@ -73,6 +73,7 @@ enum FlightStatus {
   DESCENDING
   LANDING
   PARKED
+  ENDED
   CANCELLED
 }
 
