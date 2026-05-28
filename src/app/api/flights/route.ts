@@ -8,7 +8,10 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const flights = await prisma.flight.findMany({
-    include: { host: true },
+    include: {
+      host: true,
+      tickets: true,
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -22,7 +25,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { flightNumber, departure, arrival, departureTime } = await req.json();
+  const {
+    flightNumber,
+    departure,
+    arrival,
+    departureTime,
+    economySeats,
+    businessSeats,
+    firstClassSeats,
+  } = await req.json();
 
   if (!flightNumber || !departure || !arrival || !departureTime) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -37,6 +48,9 @@ export async function POST(req: Request) {
       departureTime: new Date(departureTime),
       hostId: session.user.id,
       status: "UPCOMING",
+      economySeats: economySeats || 50,
+      businessSeats: businessSeats || 20,
+      firstClassSeats: firstClassSeats || 10,
     },
   });
 
