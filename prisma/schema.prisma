@@ -13,24 +13,30 @@ model User {
   username   String
   avatar     String?
   role       Role        @default(MEMBER)
+  baMiles    Int         @default(0)
   createdAt  DateTime    @default(now())
   flights    Flight[]
   flightLogs FlightLog[]
+  tickets    Ticket[]
 }
 
 model Flight {
-  id            String       @id @default(cuid())
-  flightNumber  String
-  route         String
-  departure     String?
-  arrival       String?
-  departureTime DateTime?
-  status        FlightStatus @default(UPCOMING)
-  hostId        String
-  host          User         @relation(fields: [hostId], references: [id])
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  flightLogs    FlightLog[]
+  id              String       @id @default(cuid())
+  flightNumber    String
+  route           String
+  departure       String?
+  arrival         String?
+  departureTime   DateTime?
+  status          FlightStatus @default(UPCOMING)
+  hostId          String
+  host            User         @relation(fields: [hostId], references: [id])
+  economySeats    Int          @default(50)
+  businessSeats   Int          @default(20)
+  firstClassSeats Int          @default(10)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  flightLogs      FlightLog[]
+  tickets         Ticket[]
 }
 
 model FlightLog {
@@ -40,6 +46,18 @@ model FlightLog {
   userId   String
   user     User     @relation(fields: [userId], references: [id])
   loggedAt DateTime @default(now())
+}
+
+model Ticket {
+  id       String      @id @default(cuid())
+  flightId String
+  flight   Flight      @relation(fields: [flightId], references: [id])
+  userId   String
+  user     User        @relation(fields: [userId], references: [id])
+  class    TicketClass @default(ECONOMY)
+  bookedAt DateTime    @default(now())
+
+  @@unique([flightId, userId])
 }
 
 enum Role {
@@ -56,4 +74,10 @@ enum FlightStatus {
   LANDING
   PARKED
   CANCELLED
+}
+
+enum TicketClass {
+  ECONOMY
+  BUSINESS
+  FIRST_CLASS
 }
