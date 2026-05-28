@@ -40,7 +40,7 @@ export default function StartFlightPage() {
         flightNumber,
         departure: departure.toUpperCase(),
         arrival: arrival.toUpperCase(),
-        departureTime,
+        departureTime: new Date(departureTime).toISOString(),
         economySeats,
         businessSeats,
         firstClassSeats,
