@@ -77,9 +77,9 @@ export default function DashboardPage() {
     CANCELLED: "❌",
   };
 
-  const activeFlights = flights.filter(
-    (f) => f.status !== "PARKED" && f.status !== "CANCELLED"
-  );
+const activeFlights = flights.filter(
+  (f) => f.status !== "PARKED" && f.status !== "CANCELLED" && f.status !== "ENDED"
+);
 
   function getTicketForFlight(flightId: string) {
     return myTickets.find((t: any) => t.flightId === flightId);
