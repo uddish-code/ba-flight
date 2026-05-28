@@ -22,15 +22,19 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { userId, role } = await req.json();
+  const { userId, role, baMiles } = await req.json();
 
-  if (!userId || !role) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  if (!userId) {
+    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
+
+  const data: any = {};
+  if (role !== undefined) data.role = role;
+  if (baMiles !== undefined) data.baMiles = baMiles;
 
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { role },
+    data,
   });
 
   return NextResponse.json(user);
