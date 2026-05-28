@@ -176,8 +176,14 @@ export default function ManageFlightPage({
             ))}
           </div>
 
-          <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
-            <p className="text-sm font-semibold text-gray-600">Update Status</p>
+<div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
+  <Link
+    href={`/flights/${params.id}/manifest`}
+    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition text-center"
+  >
+    👥 View Passenger Manifest
+  </Link>
+  <p className="text-sm font-semibold text-gray-600">Update Status</p>
 
             {!isClosed && nextStatus && nextStatusButton[flight.status] && (
               <button
