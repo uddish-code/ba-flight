@@ -22,8 +22,6 @@ export default function DashboardPage() {
   const [flights, setFlights] = useState<any[]>([]);
   const [myTickets, setMyTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -82,16 +80,6 @@ export default function DashboardPage() {
   const activeFlights = flights.filter(
     (f) => f.status !== "PARKED" && f.status !== "CANCELLED" && f.status !== "ENDED"
   );
-
-  const filteredFlights = activeFlights.filter((flight) => {
-    const query = searchTerm.trim().toLowerCase();
-    const matchesSearch =
-      query === "" ||
-      [flight.flightNumber, flight.departure, flight.arrival, flight.route, flight.host?.username]
-        .some((value) => value?.toLowerCase().includes(query));
-    const matchesStatus = statusFilter === "ALL" || flight.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   function getTicketForFlight(flightId: string) {
     return myTickets.find((t: any) => t.flightId === flightId);
@@ -152,8 +140,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Link href="/dashboard" className="bg-[#075AAA] text-white rounded-xl p-4 text-center font-semibold hover:bg-[#003b6f] transition">
             🏠 Dashboard
-          </Link>
-          {["HOST", "ADMIN"].includes(user.role) && (
+          </Link>          <Link href="/profile" className="bg-[#075AAA] text-white rounded-xl p-4 text-center font-semibold hover:bg-[#003b6f] transition">
+            👤 Profile
+          </Link>          {["HOST", "ADMIN"].includes(user.role) && (
             <Link href="/flights/start" className="bg-[#075AAA] text-white rounded-xl p-4 text-center font-semibold hover:bg-[#003b6f] transition">
               ✈️ Start Flight
             </Link>
@@ -170,42 +159,21 @@ export default function DashboardPage() {
 
         {/* Active Flights */}
         <div className="bg-white rounded-2xl shadow p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-[#003b6f] mb-4">Active Flights</h2>
               <p className="text-sm text-gray-500">
                 Browse active flights and book seats before boarding.
               </p>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search flight number, departure, arrival"
-                className="min-w-[220px] border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#075AAA]"
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border border-gray-200 rounded-xl px-4 py-3 text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#075AAA]"
-              >
-                <option value="ALL">All statuses</option>
-                <option value="UPCOMING">Upcoming</option>
-                <option value="BOARDING">Boarding</option>
-                <option value="CRUISING">Cruising</option>
-                <option value="DESCENDING">Descending</option>
-                <option value="LANDING">Landing</option>
-              </select>
-            </div>
           </div>
           {loading ? (
             <p className="text-gray-400">Loading flights...</p>
-          ) : filteredFlights.length === 0 ? (
-            <p className="text-gray-400">No active flights match your search.</p>
+          ) : activeFlights.length === 0 ? (
+            <p className="text-gray-400">No active flights right now.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {filteredFlights.map((flight) => {
+              {activeFlights.map((flight) => {
                 const myTicket = getTicketForFlight(flight.id);
                 const canBook = ["UPCOMING", "BOARDING"].includes(flight.status);
                 return (
