@@ -106,10 +106,12 @@ export default function DashboardPage() {
           <span className="font-bold text-lg">BA Flight Portal</span>
         </div>
         <div className="flex items-center gap-4">
-          {user.avatar && (
-            <img src={user.avatar} alt="avatar" className="w-8 h-8 rounded-full border-2 border-white" />
-          )}
-          <span className="text-sm hidden sm:block">{user.name}</span>
+          <Link href="/profile" className="flex items-center gap-3">
+            {user.avatar && (
+              <img src={user.avatar} alt="avatar" className="w-8 h-8 rounded-full border-2 border-white" />
+            )}
+            <span className="text-sm hidden sm:block">{user.name}</span>
+          </Link>
           <span className="text-xs bg-[#075AAA] px-2 py-1 rounded-full">{user.role}</span>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
@@ -140,9 +142,11 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Link href="/dashboard" className="bg-[#075AAA] text-white rounded-xl p-4 text-center font-semibold hover:bg-[#003b6f] transition">
             🏠 Dashboard
-          </Link>          <Link href="/profile" className="bg-[#075AAA] text-white rounded-xl p-4 text-center font-semibold hover:bg-[#003b6f] transition">
+            </Link>
+          <Link href="/profile" className="bg-[#075AAA] text-white rounded-xl p-4 text-center font-semibold hover:bg-[#003b6f] transition">
             👤 Profile
-          </Link>          {["HOST", "ADMIN"].includes(user.role) && (
+            </Link>
+          {['HOST', 'ADMIN'].includes(user.role) && (
             <Link href="/flights/start" className="bg-[#075AAA] text-white rounded-xl p-4 text-center font-semibold hover:bg-[#003b6f] transition">
               ✈️ Start Flight
             </Link>
