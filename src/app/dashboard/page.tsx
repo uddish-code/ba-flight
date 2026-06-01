@@ -22,6 +22,8 @@ export default function DashboardPage() {
   const [flights, setFlights] = useState<any[]>([]);
   const [myTickets, setMyTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -77,9 +79,19 @@ export default function DashboardPage() {
     CANCELLED: "❌",
   };
 
-const activeFlights = flights.filter(
-  (f) => f.status !== "PARKED" && f.status !== "CANCELLED" && f.status !== "ENDED"
-);
+  const activeFlights = flights.filter(
+    (f) => f.status !== "PARKED" && f.status !== "CANCELLED" && f.status !== "ENDED"
+  );
+
+  const filteredFlights = activeFlights.filter((flight) => {
+    const query = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      query === "" ||
+      [flight.flightNumber, flight.departure, flight.arrival, flight.route, flight.host?.username]
+        .some((value) => value?.toLowerCase().includes(query));
+    const matchesStatus = statusFilter === "ALL" || flight.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   function getTicketForFlight(flightId: string) {
     return myTickets.find((t: any) => t.flightId === flightId);
@@ -158,14 +170,42 @@ const activeFlights = flights.filter(
 
         {/* Active Flights */}
         <div className="bg-white rounded-2xl shadow p-6">
-          <h2 className="text-xl font-bold text-[#003b6f] mb-4">Active Flights</h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-[#003b6f] mb-4">Active Flights</h2>
+              <p className="text-sm text-gray-500">
+                Browse active flights and book seats before boarding.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search flight number, departure, arrival"
+                className="min-w-[220px] border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#075AAA]"
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="border border-gray-200 rounded-xl px-4 py-3 text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#075AAA]"
+              >
+                <option value="ALL">All statuses</option>
+                <option value="UPCOMING">Upcoming</option>
+                <option value="BOARDING">Boarding</option>
+                <option value="CRUISING">Cruising</option>
+                <option value="DESCENDING">Descending</option>
+                <option value="LANDING">Landing</option>
+              </select>
+            </div>
+          </div>
           {loading ? (
             <p className="text-gray-400">Loading flights...</p>
-          ) : activeFlights.length === 0 ? (
-            <p className="text-gray-400">No active flights right now.</p>
+          ) : filteredFlights.length === 0 ? (
+            <p className="text-gray-400">No active flights match your search.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {activeFlights.map((flight) => {
+              {filteredFlights.map((flight) => {
                 const myTicket = getTicketForFlight(flight.id);
                 const canBook = ["UPCOMING", "BOARDING"].includes(flight.status);
                 return (
